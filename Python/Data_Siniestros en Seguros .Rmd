@@ -1,0 +1,358 @@
+# Proyecto 1
+
+# STADISTIQUE DESCRIPTIVE
+
+### Presentado por: Alejandro Tirado
+
+```{r}
+library(readxl)
+library(dplyr)
+```
+
+```{r}
+getwd()
+
+Base_sin <- read.csv2("C:/Users/IDEAPAD5/Desktop/R Data Science/Proyecto 1/Data_Siniestros en Seguros .csv", stringsAsFactors = TRUE, sep=",",check.names = FALSE)
+head(Base_sin, 10)
+#view(head(df, 10))
+```
+
+```{r}
+# Caracteristicas et Info del DataFrame
+str(Base_sin)
+```
+
+```{r}
+#class(Base_sin$Nivel_Ingresos)
+```
+
+```{r}
+# Remplazo punto por coma
+
+for (i in 1:ncol(Base_sin)) {
+  if (is.factor(Base_sin[, i])) {  # Verifica si la columna i es de tipo character
+    Base_sin[, i] <- gsub("\\.", ",", Base_sin[, i], fixed = TRUE)
+  }
+}
+head(Base_sin,10)
+```
+
+```{r}
+# Cambiar la codificación de caracteres
+nombres_nuevos <- iconv(names(Base_sin), from = "UTF-8", to = "ASCII//TRANSLIT")
+nombres_nuevos <- gsub("[^[:alnum:]]", "_", nombres_nuevos)
+
+# Asignar los nuevos nombres a las columnas
+names(Base_sin) <- nombres_nuevos
+names(Base_sin)[2] <- "Antiguedad"
+head(Base_sin,10)
+```
+
+```{r}
+names_col=colnames(Base_sin)
+print(names_col)
+```
+
+```{r}
+# Estado_Siniestro como variable dicotómica
+Base_sin$Estado_Siniestro<- ifelse(Base_sin$Estado_Siniestro == "si", 1, 0)
+head(Base_sin,10)
+
+```
+
+```{r}
+Base_sin <- Base_sin %>%
+  mutate_all(as.numeric)
+str(Base_sin)
+
+```
+
+```{r}
+#Nan du DataFrame
+#which(is.na(df))  # Lignes contenat des Nan
+sum(is.na(Base_sin))    # Total de NaN
+apply(is.na(Base_sin), 2, mean) # % de NaN par variable
+apply(is.na(Base_sin), 2, sum)  # nb de NaN par variable
+```
+
+```{r}
+# Elimíno los missing data
+
+Base_sin_na<- na.omit(Base_sin)
+head(Base_sin_na,1)
+```
+
+```{r}
+#imputación de NA
+
+#library(modeest)
+#var_imput <- c(5, 6, 7,8,9,10)
+
+#imp.var.num<- function(DFx, v_imput){
+
+#  for(i in v_imput){ 
+#    DFx[, i][is.na(DFx[, i])] <- mlv(DFx[, i], na.rm = TRUE) # Pour toutes les lignes de la colonne i du dfx où il y a #NA,caluler la moyenne et l'imputer avec les NA de toutes les lignes de la colonne i. 
+#    print(sum(is.na(DFx[, i])))
+#  
+#  }
+#  return (DFx)
+
+#}
+
+#Base_sin2 = imp.var.num(Base_sin, var_imput) # new df en aplicant fonction 
+
+#Base_sin2$Antiguedad[is.na(Base_sin$Antiguedad)] <- mean(Base_sin$Antiguedad, 
+     #                                                   na.rm = TRUE )
+
+
+#calculo_moda <- function(x) {
+#  ux <- unique(x)
+#  ux[which.max(tabulate(match(x, ux)))]
+#}
+
+#Base_sin2$Nivel_Ingresos[is.na(Base_sin$Nivel_Ingresos)] <- calculo_moda(Base_sin2$Nivel_Ingresos)
+
+```
+
+```{r}
+str(Base_sin_na)
+sum(is.na(Base_sin_na))
+```
+
+```{r}
+Base_sin_na<- Base_sin_na[c(-1)] # Elimino id_cliente
+head(Base_sin_na,1)
+```
+
+```{r}
+# Distribución variables numéricas y nivel de ingresos
+
+multiple.histograma <- function(x, tipo.grafico="hist") {  # otro "densi"
+     nvar <- dim(x)[2]  #nb_colonnes
+     
+     nsize=trunc(sqrt(nvar))+1   # trunc pour obtemir un entier
+     old.par <- par(no.readonly = TRUE) # espace pour le grafique
+     par(mfrow=c(nsize-1,nsize))       # espace pour le grafique
+     
+     for (i in 1:nvar) {
+       name=names(x)[i] # on récupére les noms des colonnes
+       
+       if (tipo.grafico == "hist"){
+         dx <- density(x[,i])
+         hist(x[,i],freq = FALSE, main=name, xlab=name) 
+         lines(dx, lwd = 2, col = "blue", lty="dotted")
+       }
+       
+       else if (tipo.grafico == "densi")
+         plot(density(x[,i]), 
+              lwd = 2, col = "red", 
+              main = name)
+      
+       else if (tipo.grafico == "box")
+         boxplot(x[,i], main=name, xlab=name, horizontal = FALSE)
+       
+       else
+         print("No se identifica el tipo de gráfico; opciones: 'hist', 'densi', 'box'")
+       }  # un graphique de densité pour chaque variable
+       
+       on.exit(par(old.par))   # on remet l'espace du grafique
+}
+
+multiple.histograma(x = Base_sin_na[,c(1,2,3,10)], tipo.grafico="hist")
+```
+
+```{r}
+# Obténgo solo las columnas que deseo graficar (las categoricas)
+
+columnas_seleccionadas <- Base_sin_na[, names(Base_sin_na) %in% c("Nivel_Ingresos","Puntaje_Morosidad1", "Puntaje_Morosidad2", "Puntaje_Morosidad3", "Puntaje_Morosidad4", "Puntaje_Morosidad5", "Puntaje_Morosidad6","Estado_Siniestro")]
+
+# Lista para almacenar las tablas de frecuencia
+tablas_frecuencia <- list()
+
+# Iterar a través de las columnas seleccionadas
+for (col in names(columnas_seleccionadas)) {
+  # Calcular la tabla de frecuencia y almacenar en la lista
+  tablas_frecuencia[[col]] <- table(columnas_seleccionadas[[col]])
+}
+
+# Mostrar las tablas de frecuencia
+for (i in seq_along(tablas_frecuencia)) {
+  cat("Tabla de frecuencia para", names(tablas_frecuencia)[i], ":\n")
+  print(tablas_frecuencia[[i]])
+  par(pin=c(2,2))
+  barplot(tablas_frecuencia[[i]], col = "skyblue", main = names(tablas_frecuencia)[i], xlab = "Valor", ylab = "Frecuencia")
+  cat("\n")
+}
+
+```
+
+```{r}
+# Numéro de observaciones por nivel de ingresos
+
+tab_frec<- table(Base_sin_na$Nivel_Ingresos)
+tab_frec
+```
+
+```{r}
+# Antiguedad por nivel de ingresos
+
+mg <- Base_sin_na %>% 
+  select(Antiguedad, Nivel_Ingresos) %>% 
+  group_by(Nivel_Ingresos = Nivel_Ingresos) %>% 
+  summarize(m=round(mean(Antiguedad, na.rm = TRUE),0))
+
+mg
+```
+
+```{r}
+round(apply(Base_sin_na[,c(1,2,3,10)],2,mean)) 
+```
+
+```{r}
+# Quantiles
+
+#función quantile sirve con la version 2023.06.2 Build 561
+ 
+calculate_quantiles <- function(x){  
+  min_val <- min(x)
+  max_val <- max(x)
+  Q1 <- quantile(x, probs = c(0.25))
+  Q2 <- quantile(x, probs = c(0.5))
+  Q3 <- quantile(x, probs = c(0.75))
+  return(c(min_val, Q1, Q2, Q3, max_val))
+}
+
+
+# Quantile de las columnas numéricas
+
+apply(Base_sin_na[,c(1,2,3, 10)],2,FUN=quantile)  
+#mapply(quantile, Base_sin_na[,c(1,2,3,10)])      # 2éme option
+```
+
+```{r}
+ # Grafico de dispersión respecto a el nivel de ingresos
+
+variables_y <- c("Antiguedad", "Saldo_Pendiente", "Saldo_Pendiente_Seg")  # Lista de columnas a graficar
+
+# Utilizar lapply para generar múltiples boxplots
+#lapply(variables_y, function(col) {
+  boxplot(Base_sin_na$Antiguedad ~ Base_sin_na$Nivel_Ingresos, data = Base_sin_na,
+         main = paste("Boxplot de Antiguedad"),
+          xlab = "Nivel de Ingresos",
+          ylab = "Antiguedad"
+          )
+  
+  lapply(variables_y, function(col) {
+  plot(Base_sin_na$Nivel_Ingresos, Base_sin_na[[col]], 
+     xlab = "Nivel_Ingresos", ylab = "Saldo Pendiente",
+     main = "Gráfico de Dispersión")
+  
+  
+})
+
+```
+
+```{r}
+# Estandarizamos las variables numéricas
+
+Base_sin_na$Saldo_Pendiente <- rnorm(Base_sin_na$Saldo_Pendiente)
+Base_sin_na$Saldo_Pendiente_Seg <- rnorm(Base_sin_na$Saldo_Pendiente_Seg)
+Base_sin_na$Antiguedad <- rnorm(Base_sin_na$Antiguedad)
+```
+
+```{r}
+# Revisamos la nueva distribución
+
+multiple.histograma <- function(x, tipo.grafico="hist") {  # otro "densi"
+     nvar <- dim(x)[2]  #nb_colonnes
+     
+     nsize=trunc(sqrt(nvar))+1   # trunc pour obtemir un entier
+     old.par <- par(no.readonly = TRUE) # espace pour le grafique
+     par(mfrow=c(nsize-1,nsize))       # espace pour le grafique
+     
+     for (i in 1:nvar) {
+       name=names(x)[i] # on recupere le noms des colonnes
+       
+       if (tipo.grafico == "hist"){
+         dx <- density(x[,i])
+         hist(x[,i],freq = FALSE, main=name, xlab=name) 
+         lines(dx, lwd = 2, col = "blue", lty="dotted")
+       }
+       
+       else if (tipo.grafico == "densi")
+         plot(density(x[,i]), 
+              lwd = 2, col = "red", 
+              main = name)
+      
+       else if (tipo.grafico == "box")
+         boxplot(x[,i], main=name, xlab=name, horizontal = FALSE)
+       
+       else
+         print("No se identifica el tipo de gráfico; opciones: 'hist', 'densi', 'box'")
+       }  # un graphique de densité pour chaque variable
+       
+       on.exit(par(old.par))   # on remet l'espace du grafique
+}
+
+multiple.histograma(x = Base_sin_na[,c(1,3,10)], tipo.grafico="hist")
+```
+
+# Estadistica Inferencial
+
+Test de normalidad.
+
+PLANTEAMIENTO DE LAS HIPOTESIS
+
+Ho: Los datos estan normalmente distribuidos\
+Ha: Los datos no estan normalmente distribuidos
+
+Nivel de significancia = 5% (0.05)
+
+```{r}
+library(nortest) 
+lillie.test(Base_sin_na$Antiguedad)$p.value
+lillie.test(Base_sin_na$Saldo_Pendiente)$p.value
+lillie.test(Base_sin_na$Saldo_Pendiente_Seg)$p.value
+```
+
+Decisión: Los datos de la variables "Antiguedad","Saldo_pendiente" y "Saldo_pendiente_seg" están normalmente distribuidos; esto afirmamos con un nivel de confianza del 95% / nivel de significancia del 5%.
+
+```{r}
+# creamos nuevas variables a partir de las columnas Morosidad y Siniestros 
+Base_sin_na$Mora_promedio <- rowMeans(Base_sin_na[4:9])
+Base_sin_na$Siniestros_promedio <- rowMeans(Base_sin_na[11:16])
+Base_sin_na<- (Base_sin_na[,c(-4,-5,-6,-7,-8,-9,-11,-12,-13,-14,-15,-16)]) # Eliminamos Morosidad y Siniestros de 1 al 6
+```
+
+```{r}
+x<-cor(Base_sin_na)
+View(x)
+```
+
+```{r}
+library(PerformanceAnalytics)
+
+chart.Correlation(Base_sin_na, 
+                  histogram = TRUE, 
+                  method = "pearson"
+                  )
+
+```
+
+```{r}
+# Eliminamos variables no correlacionadas
+
+Base_sin_na<- (Base_sin_na[,c(-1,-3,-4)])
+head(Base_sin_na,10)
+```
+
+```{r}
+# Modelo logit
+
+modelo_logit <- glm(Estado_Siniestro ~ Nivel_Ingresos + Mora_promedio + Siniestros_promedio , data = Base_sin_na, family = "binomial")
+
+summary(modelo_logit)
+
+```
+
+z value valor de la variable que más aporta al modelo. p value significancia. Más cerca a cero más correlacion.
